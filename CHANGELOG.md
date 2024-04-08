@@ -1,4 +1,15 @@
-## [0.5.0] - 2024-01-
+## [0.5.1] - 2024-04-08
+### Added:
+- Added `Copy` method to `state.State` object, which creates a copy of the state object.
+- Added `LogReturnsScaler` and `Normalizer` scalers to `scalers` file.
+- Started integrating short orders into the environment (`TradingEnv`). (not finished yet)
+
+### Changed:
+- Fixed `dataFeeder.PdDataFeeder` to return `State` copy, so the state doesn't change when we change the state in the environment.
+- Some tests with `experiments/training_ppo_sinusoid_continuous.py` and `experiments/training_ppo_sinusoid_discrete.py`
+
+
+## [0.5.0] - 2024-01-30
 ### Added:
 - Added `MACD` indicator to `indicators` file.
 - Added `reward.AccountValueChangeReward` object to calculate reward based on the change in the account value.

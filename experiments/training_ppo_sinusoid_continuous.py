@@ -20,7 +20,8 @@ from rockrl.tensorflow import PPOAgent
 from rockrl.utils.vectorizedEnv import VectorizedEnv
 
 df = pd.read_csv('Datasets/random_sinusoid.csv')
-df = df[:-1000] # leave 1000 for testing
+df, df_test = df[:-1000], df[-1000:]
+
 
 pd_data_feeder = PdDataFeeder(
     df,
@@ -94,6 +95,12 @@ agent = PPOAgent(
 pd_data_feeder.save_config(agent.logdir)
 env.env.save_config(agent.logdir)
 
+# environment for testing
+test_env = TradingEnv.load_config(
+    PdDataFeeder.load_config(df_test, agent.logdir), 
+    agent.logdir
+)
+
 memory = MemoryManager(num_envs=num_envs)
 meanAverage = MeanAverage(best_mean_score_episode=1000)
 states, infos = env.reset()
@@ -121,8 +128,20 @@ while True:
         agent.log_to_writer(info['metrics'])
         states[index], infos[index] = env.reset(index=index)
 
+        # test after last environment is done
+        if index == num_envs - 1:
+            test_state, test_info = test_env.reset()
+            while True:
+                action, _ = agent.act(test_state, training=False)
+                test_state, reward, terminated, truncated, info = test_env.step(action)
+
+                if terminated or truncated:
+                    for metric, value in info['metrics'].items():
+                        agent.log_to_writer({f'test/{metric}': value})
+                    break
+
     if agent.epoch >= 20000:
         break
 
 env.close()
-exit()
+agent.close()

@@ -52,7 +52,8 @@ class PdDataFeeder:
     def __getitem__(self, idx: int, args=None) -> State:
         # Use cache to speed up training
         if idx in self._cache:
-            return self._cache[idx]
+            state = self._cache[idx]
+            return state.copy() if state is not None else state
 
         indicators = []
         for indicator in self._indicators:

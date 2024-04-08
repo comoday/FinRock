@@ -12,6 +12,7 @@ from .reward import SimpleReward
 class ActionSpace(Enum):
     DISCRETE = 3
     CONTINUOUS = 2
+    SHORT_DISCRETE = 5
 
 class TradingEnv:
     def __init__(
@@ -59,6 +60,10 @@ class TradingEnv:
         return next_state
     
     def _get_terminated(self):
+        # get last state and next state
+        last_state, next_state = self._observations[-2:]
+        if next_state.account_value <= 0.0:
+            return True
         return False
         
     def _take_action(self, action_pred: typing.Union[int, np.ndarray]) -> typing.Tuple[int, float]:
@@ -70,49 +75,70 @@ class TradingEnv:
             order_size = np.clip(action_pred[1], 0, 1)
             order_size = np.around(order_size, decimals=2)
             action = int((np.clip(action_pred[0], -1, 1) + 1) * 1.5) # scale from -1,1 to 0,3
-        elif action_pred in [0, 1, 2]:
+        elif action_pred in list(range(self.action_space)):
             order_size = 1.0
             action = action_pred
-            assert (action in list(range(self._action_space.value))) == True, f'action must be in range {self._action_space.value}, received: {action}'
+            assert (action in list(range(self.action_space))) == True, f'action must be in range {self.action_space}, received: {action}'
         else:
             raise ValueError(f'invalid action type: {type(action)}')
-
 
         # get last state and next state
         last_state, next_state = self._observations[-2:]
 
+        # 
+        if action == 4 and last_state.allocation_percentage >= 0.0:
+            action = 0
+        # 
+        elif action == 3 and last_state.allocation_percentage == -1.0:
+            action = 0
+
         # modify action to hold (0) if we are out of balance
-        if action == 2 and last_state.allocation_percentage == 1.0:
+        elif action == 2 and last_state.allocation_percentage == 1.0:
             action = 0
 
         # modify action to hold (0) if we are out of assets
-        elif action == 1 and last_state.allocation_percentage == 0.0:
+        elif action == 1 and last_state.allocation_percentage <= 0.0:
             action = 0
 
         if order_size == 0:
             action = 0
 
-        if action == 2: # buy
+        if action == 4: # buy out short
+            # buy_order_size = order_size
+            next_state.allocation_percentage = 0.0 # last_state.allocation_percentage + buy_order_size
+            next_state.assets = 0.0 # last_state.assets + (last_state.balance * buy_order_size / last_state.close) * self.fee_ratio
+            next_state.balance = last_state.balance + (last_state.assets * last_state.close) * self.fee_ratio
+
+        elif action == 3: # short
+            next_state.balance = last_state.balance
+            next_state.assets = last_state.assets
+            if last_state.allocation_percentage > 0.0:
+                sell_order_size = last_state.allocation_percentage
+                next_state.allocation_percentage = 0.0
+                next_state.balance = next_state.balance + last_state.assets * sell_order_size * last_state.close * self.fee_ratio
+                next_state.assets = next_state.assets - last_state.assets + (last_state.balance * sell_order_size / last_state.close) # * self.fee_ratio
+                
+            short_order_size = order_size
+            next_state.allocation_percentage = -short_order_size
+            next_state.balance = next_state.balance + (last_state.balance * short_order_size) # !!!TODO add borrowed money fee
+            next_state.assets = next_state.assets - (last_state.balance * short_order_size / last_state.close) * self.fee_ratio
+
+        elif action == 2: # buy
             buy_order_size = order_size
             next_state.allocation_percentage = last_state.allocation_percentage + (1 - last_state.allocation_percentage) * buy_order_size
+            next_state.balance = last_state.balance - (last_state.balance * buy_order_size) # * self.fee_ratio
             next_state.assets = last_state.assets + (last_state.balance * buy_order_size / last_state.close) * self.fee_ratio
-            next_state.balance = last_state.balance - (last_state.balance * buy_order_size) * self.fee_ratio
 
         elif action == 1: # sell
             sell_order_size = order_size
             next_state.allocation_percentage = last_state.allocation_percentage - last_state.allocation_percentage * sell_order_size
             next_state.balance = last_state.balance + (last_state.assets * sell_order_size * last_state.close) * self.fee_ratio
-            next_state.assets = last_state.assets - (last_state.assets * sell_order_size) * self.fee_ratio
+            next_state.assets = last_state.assets - (last_state.assets * sell_order_size) # * self.fee_ratio
 
         else: # hold
             next_state.allocation_percentage = last_state.allocation_percentage
-            next_state.assets = last_state.assets
             next_state.balance = last_state.balance
-
-        if next_state.allocation_percentage > 1.0:
-            raise ValueError(f'next_state.allocation_percentage > 1.0: {next_state.allocation_percentage}')
-        elif next_state.allocation_percentage < 0.0:
-            raise ValueError(f'next_state.allocation_percentage < 0.0: {next_state.allocation_percentage}')
+            next_state.assets = last_state.assets
 
         return action, order_size
     
@@ -136,6 +162,9 @@ class TradingEnv:
         observation = self._get_obs(index)
         # update observations object with new observation
         self._observations.append(observation)
+        negative = [obs.account_value for obs in self._observations.observations if obs.account_value < 0.0]
+        if negative:
+            print(negative)
 
         action, order_size = self._take_action(action)
         reward = self._reward_function(self._observations)
@@ -220,12 +249,13 @@ class TradingEnv:
     def load_config(data_feeder, path: str = "", **kwargs):
         """ Load the environment configuration
         """
-
-        input_path = os.path.join(path, "TradingEnv.json")
-        if not os.path.exists(input_path):
-            raise Exception(f"TradingEnv Config file not found in {path}")
-        with open(input_path, "r") as f:
-            config = json.load(f)
+        config = kwargs.get("config", None)
+        if config is None:
+            input_path = os.path.join(path, "TradingEnv.json")
+            if not os.path.exists(input_path):
+                raise Exception(f"TradingEnv Config file not found in {path}")
+            with open(input_path, "r") as f:
+                config = json.load(f)
 
         environment = TradingEnv(
             data_feeder = data_feeder,

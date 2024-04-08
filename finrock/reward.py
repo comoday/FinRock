@@ -52,7 +52,6 @@ class SimpleReward(Reward):
 class AccountValueChangeReward(Reward):
     def __init__(self) -> None:
         super().__init__()
-        self.ratio_days=365.25
 
     def reset(self, observations: Observations):
         super().reset(observations)

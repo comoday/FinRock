@@ -56,8 +56,19 @@ class State:
     
     @allocation_percentage.setter
     def allocation_percentage(self, value: float):
-        assert 0.0 <= value <= 1.0, f'allocation_percentage value must be between 0.0 and 1.0, received: {value}'
+        assert -1.0 <= value <= 1.0, f'allocation_percentage value must be between 0.0 and 1.0, received: {value}'
         self._allocation_percentage = value
+
+    def copy(self):
+        return State(
+            timestamp=self.timestamp,
+            open=self.open,
+            high=self.high,
+            low=self.low,
+            close=self.close,
+            volume=self.volume,
+            indicators=self.indicators,
+        )
     
 
 class Observations:
