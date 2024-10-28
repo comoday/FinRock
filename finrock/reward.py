@@ -2,66 +2,77 @@ import numpy as np
 from .state import Observations
 
 class Reward:
-    def __init__(self) -> None:
+    def __init__(self) -> None:  # Rewardクラスの初期化メソッド
         pass
 
     @property
-    def __name__(self) -> str:
+    def __name__(self) -> str:    # クラス名を返すプロパティ
         return self.__class__.__name__
     
     def __call__(self, observations: Observations) -> float:
+        # 観測データを受け取って報酬を計算するメソッド（サブクラスで実装が必要）
         raise NotImplementedError
     
     def reset(self, observations: Observations):
+        # リセットメソッド（特に何もしない）
         pass
     
 
 class SimpleReward(Reward):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self) -> None:    # SimpleRewardクラスの初期化メソッド
+        super().__init__()   # 親クラスRewardの初期化を呼び出す
 
     def __call__(self, observations: Observations) -> float:
+        # 観測データを受け取り、報酬を計算するメソッド
         assert isinstance(observations, Observations) == True, "observations must be an instance of Observations"
-
+        # 観測から最後の2つの状態を取得
         last_state, next_state = observations[-2:]
 
-        # buy
+        # 購入アクションの場合
         if next_state.allocation_percentage > last_state.allocation_percentage:
-            # check whether it was good or bad to buy
-            order_size = next_state.allocation_percentage - last_state.allocation_percentage
+            # 購入が良かったか悪かったかを判断
+            order_size = next_state.allocation_percentage - last_state.allocation_percentage   # 購入サイズを計算
+            # 購入による報酬を計算
             reward = (next_state.close - last_state.close) / last_state.close * order_size
+            # 保持による報酬を計算
             hold_reward = (next_state.close - last_state.close) / last_state.close * last_state.allocation_percentage
-            reward += hold_reward
+            reward += hold_reward  # 購入報酬と保持報酬を合算
 
-        # sell
+        # 売却アクションの場合
         elif next_state.allocation_percentage < last_state.allocation_percentage:
-            # check whether it was good or bad to sell
-            order_size = last_state.allocation_percentage - next_state.allocation_percentage
+            # 売却が良かったか悪かったかを判断
+            order_size = last_state.allocation_percentage - next_state.allocation_percentage   # 売却サイズを計算
+            # 売却による報酬を計算
             reward = -1 * (next_state.close - last_state.close) / last_state.close * order_size
+            # 保持による報酬を計算
             hold_reward = (next_state.close - last_state.close) / last_state.close * next_state.allocation_percentage
-            reward += hold_reward
+            reward += hold_reward   # 売却報酬と保持報酬を合算
 
-        # hold
+        # 保持アクションの場合
         else:
-            # check whether it was good or bad to hold
-            ratio = -1 if not last_state.allocation_percentage else last_state.allocation_percentage
-            reward = (next_state.close - last_state.close) / last_state.close * ratio
+            # 保持かよかったか悪かったかを判断
+            ratio = -1 if not last_state.allocation_percentage else last_state.allocation_percentage  # 割り当て割合を取得
+            reward = (next_state.close - last_state.close) / last_state.close * ratio  # 保持による報酬を計算
             
-        return reward
+        return reward   # 計算された報酬を返す
 
 class AccountValueChangeReward(Reward):
-    def __init__(self) -> None:
-        super().__init__()
-        self.ratio_days=365.25
+    def __init__(self) -> None:  # AccountValueChangeRewardクラスの初期化メソッド
+        super().__init__()       # 親クラスRewardの初期化を呼び出す
+        self.ratio_days=365.25   # 日数の比率を設定（通常の年数、うるう年を考慮）
 
-    def reset(self, observations: Observations):
-        super().reset(observations)
-        self.returns = []
+
+    def reset(self, observations: Observations):   # リセットメソッド（状態をリセット）
+        super().reset(observations)                # 親クラスのリセットメソッドを呼び出す
+        self.returns = []                          # 収益率のリストを初期化
     
     def __call__(self, observations: Observations) -> float:
+        # 観測データを受け取り、報酬を計算するメソッド
         assert isinstance(observations, Observations) == True, "observations must be an instance of Observations"
 
+        # 観測から最後の2つの状態を取得
         last_state, next_state = observations[-2:]
+        # アカウントの価値の変化に基づく報酬を計算
         reward = (next_state.account_value - last_state.account_value) / last_state.account_value
 
-        return reward
+        return reward    # 計算された報酬を返す
