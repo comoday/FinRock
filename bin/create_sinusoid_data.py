@@ -4,90 +4,93 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from datetime import datetime, timedelta
 
+""" サイン波データを持つデータフレームを作成 """
 def create_sinusoidal_df(
-    amplitude = 2000.0,  # Amplitude of the price variations
-    frequency = 0.01,  # Frequency of the price variations
-    phase = 0.0,  # Phase shift of the price variations
-    num_samples = 10000,  # Number of data samples
-    data_shift = 20000, # shift the data up
-    trendline_down = 5000, # shift the data down
-    plot = False,
+    amplitude = 2000.0,           # 価格の変動の振幅
+    frequency = 0.01,             # 価格の変動の周波数
+    phase = 0.0,                  # 価格の変動の位相シフト
+    num_samples = 10000,          # データサンプルの数
+    data_shift = 20000,           # データを上にシフト
+    trendline_down = 5000,        # データを下にシフト
+    plot = False,                 # プロットを表示するかどうか
     ):
-    """Create a dataframe with sinusoidal data"""
+    
 
-    # Generate the time axis
+    # 時間軸を生成
     t = np.linspace(0, 2 * np.pi * frequency * num_samples, num_samples)
 
-    # Get the current datetime
+    # 現在の日時を取得
     now = datetime.now()
 
-    # Set hours, minutes, and seconds to zero
+    # 時間、分、秒をゼロに設定
     now = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    # Generate timestamps for each day
+    # 各日付のタイムスタンプを生成
     # timestamps = [now - timedelta(days=i) for i in range(num_samples)]
     timestamps = [now - timedelta(hours=i*4) for i in range(num_samples)]
 
-    # Convert datetime objects to strings
+    # datetimeオブジェクトを文字列に変換
     timestamps = [timestamps.strftime('%Y-%m-%d %H:%M:%S') for timestamps in timestamps]
 
-    # Invert the order of the timestamps
+    # タイムスタンプの順序を反転
     timestamps = timestamps[::-1]
 
-    # Generate the sinusoidal data for prices
-    sin_data = amplitude * np.sin(t + phase)
-    sin_data += data_shift # shift the data up
+    # 価格のためのサインはデータを生成
+    sin_data = amplitude * np.sin(t + phase)   # サイン波の生成
+    sin_data += data_shift                     # データを上にシフト
 
-    # shiwft sin_data up, to create trendline up
+    # トレンドラインを作成するためにデータを下にシフト
     sin_data -= np.linspace(0, trendline_down, num_samples)
 
-    # Add random noise
-    noise = np.random.uniform(0.95, 1.05, len(t))  # generate random noise
-    noisy_sin_data = sin_data * noise  # add noise to the original data
+    # ランダムノイズを追加
+    noise = np.random.uniform(0.95, 1.05, len(t))  # ランダムノイズを生成
+    noisy_sin_data = sin_data * noise  # 元データにノイズを追加
 
+    # ノイズ付きサインはデータの価格範囲を計算
     price_range = np.max(noisy_sin_data) - np.min(noisy_sin_data)
 
-    # Generate random low and close prices
-    low_prices = noisy_sin_data - np.random.uniform(0, 0.1 * price_range, len(noisy_sin_data))
-    close_prices = noisy_sin_data + np.random.uniform(-0.05 * price_range, 0.05 * price_range, len(noisy_sin_data))
+    # ランダムな低価格と終値を生成
+    low_prices = noisy_sin_data - np.random.uniform(0, 0.1 * price_range, len(noisy_sin_data))   # 低価格はノイズデータからランダムに引く
+    close_prices = noisy_sin_data + np.random.uniform(-0.05 * price_range, 0.05 * price_range, len(noisy_sin_data))   # 終値はノイズデータにランダムに加減
 
-    # open prices usually are close to the close prices of the previous day
-    open_prices = np.zeros(len(close_prices))
-    open_prices[0] = close_prices[0]
-    open_prices[1:] = close_prices[:-1]
+    # 始値は通常、前日の終値に近い
+    open_prices = np.zeros(len(close_prices))  # 始値の配列を初期化
+    open_prices[0] = close_prices[0]           # 最初の始値を最初の終値に設定
+    open_prices[1:] = close_prices[:-1]        # 以降の始値を前日の終値に設定
 
-    # high prices are always above open and close prices
-    high_prices = np.maximum(open_prices, close_prices) + np.random.uniform(0, 0.1 * price_range, len(close_prices))
+    # 高値は常に始値と終値の上にある
+    high_prices = np.maximum(open_prices, close_prices) + np.random.uniform(0, 0.1 * price_range, len(close_prices))   # 高値を計算
 
-    # low prices are always below open and close prices
-    low_prices = np.minimum(open_prices, close_prices) - np.random.uniform(0, 0.1 * price_range, len(close_prices))
+    # 低値は常に始値と終値の下にある
+    low_prices = np.minimum(open_prices, close_prices) - np.random.uniform(0, 0.1 * price_range, len(close_prices))   # 低値を計算
 
+    # プロットを表示する場合
     if plot:
-        # Plot the price data
+        # 価格データをプロット
         plt.figure(figsize=(10, 6))
-        plt.plot(t, noisy_sin_data, label='Noisy Sinusoidal Data')
+        plt.plot(t, noisy_sin_data, label='Noisy Sinusoidal Data')  # ノイズ付きサイン波データ
         plt.plot(t, open_prices, label='Open')
         plt.plot(t, low_prices, label='Low')
         plt.plot(t, close_prices, label='Close')
         plt.plot(t, high_prices, label='High')
-        plt.xlabel('Time')
-        plt.ylabel('Price')
-        plt.title('Fake Price Data')
-        plt.legend()
-        plt.grid(True)
+        plt.xlabel('Time')   # ｘ軸ラベル
+        plt.ylabel('Price')  # ｙ軸ラベル
+        plt.title('Fake Price Data')   # グラフタイトル['Fake Price Data']
+        plt.legend()   # 凡例を表示
+        plt.grid(True)   # グリッド線を表示
         plt.show()
 
-    # save the data to a CSV file with matplotlib as df[['open', 'high', 'low', 'close']
+    # データフレームdf[['open', 'high', 'low', 'close']の作成
     df = pd.DataFrame({'timestamp': timestamps, 'open': open_prices, 'high': high_prices, 'low': low_prices, 'close': close_prices})
 
-    return df
+    return df   # データフレームを返す
 
 if __name__ == '__main__':
-    # Create a dataframe with sinusoidal data
+    # サイン波データを持つデータフレームを作成
     df = create_sinusoidal_df()
 
-    # Create a directory to store the datasets
+    # データセットを保存するディレクトリを作成
     os.makedirs('Datasets', exist_ok=True)
 
-    # Save the dataframe to a CSV file
+    # データフレームをCSVファイルに保存
     df.to_csv(f'Datasets/random_sinusoid.csv')
