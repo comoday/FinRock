@@ -15,9 +15,9 @@ from finrock.render import PygameRender
 df = pd.read_csv('Datasets/random_sinusoid.csv')
 # 最後の1000行を取り出してデータフレームを作成
 df = df[-1000:]
-
+6
 # モデルのパスを指定
-model_path = "runs/1704746665"
+model_path = "runs/1730685315"
 
 # PdDataFeederの設定をモデルパスから読み込む
 pd_data_feeder = PdDataFeeder.load_config(df, model_path)
@@ -33,6 +33,14 @@ pygameRender = PygameRender(frame_rate=120)  # フレームレートを120に設
 
 # 学習済みモデル（アクターモデル）を読み込む
 agent = tf.keras.models.load_model(f'{model_path}/ppo_sinusoid_actor.h5')
+
+""" 
+・categorical_crossentropy: 多クラス分類問題において、モデルの予測と実際のラベルの間の差異を測定する損失関数です。
+・accuracy: モデルの正確性を示す指標で、正しく分類されたサンプルの割合を計算します。
+これらの損失関数とメトリクスは、モデルのトレーニングと評価において重要な役割を果たします。
+"""
+# モデルをコンパイルする # 必要に応じて適切なオプティマイザと損失関数を指定
+agent.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
 # 環境をリセットして初期状態と情報を取得
 state, info = env.reset()
