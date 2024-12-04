@@ -5,7 +5,7 @@ import tensorflow as tf
 # TensorFlowのログレベルをERRORに設定(警告や情報メッセージを表示しない)
 tf.get_logger().setLevel('ERROR')
 # GPUデバイスが存在する場合、メモリの成長を有効にする
-for gpu in tf.config.experimental.list_physical_devices('GPU'):
+for gpu in tf.config.list_physical_devices('GPU'):
     tf.config.experimental.set_memory_growth(gpu, True)
 
 from keras import layers, models
@@ -24,7 +24,7 @@ from rockrl.utils.vectorizedEnv import VectorizedEnv
 
 if __name__ == '__main__':
     # CSVファイルからデータを読み込む
-    df = pd.read_csv('Datasets/random_sinusoid.csv')
+    df = pd.read_csv('Datasets/2023_5min.csv')
     df = df[:-1000]  # テスト用にラスト1000行を取り除く
 
     # PdDataFeederインスタンスを作成
@@ -108,6 +108,7 @@ if __name__ == '__main__':
         kl_coeff=0.5,  # KLダイバージェンスの係数
         c2=0.01,  # クリティックの損失関数の係数
         writer_comment='ppo_sinusoid_discrete',  # ログに書き込むコメント
+        action_space='discrete'    # discrete:離散的　or continuous:連続的
     )
 
     # エージェントのログディレクトリに設定を保存
@@ -117,12 +118,19 @@ if __name__ == '__main__':
     if not os.path.exists(logdir):
         os.makedirs(logdir)
 
+    print("Attempting to save PdDataFeeder configuration...")
     try:
-        pd_data_feeder.save_config(logdir)  # PdDataFeederの設定をログディレクトリに保存
-        env.env.save_config(logdir)  # 環境の設定をログディレクトリに保存
+        pd_data_feeder.save_config(logdir)  # Save PdDataFeeder configuration
+        print("PdDataFeeder configuration saved successfully.")
     except Exception as e:
-        print(f"Failed to save config to file: {e}")  # エラーメッセージを表示
+        print(f"Failed to save PdDataFeeder config to file: {e}")
 
+    print("Attempting to save environment configuration...")
+    try:
+        env.env.save_config(logdir)  # Save environment configuration
+        print("Environment configuration saved successfully.")
+    except Exception as e:
+        print(f"Failed to save environment config to file: {e}")
 
     # メモリマネージャーを作成し、環境の数を指定
     memory = MemoryManager(num_envs=num_envs)  # 複数環境の経験を管理するオブジェクト

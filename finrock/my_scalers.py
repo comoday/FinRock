@@ -1,7 +1,7 @@
 import numpy as np
 np.seterr(all="ignore")   # 全ての警告を無視する設定
 import warnings
-from .state import Observations
+from my_state import Observations
 
 
 class Scaler:
@@ -73,12 +73,23 @@ class ZScoreScaler(Scaler):
     def transform(self, observations: Observations) -> np.ndarray:
         # 観測データをZスコアスケーリングで変換するメソッド
         full_data = []  # すべてのデータを格納するリストを初期化
+
+        print("Observations:", observations)   # 内容確認 
         
         for state in observations:  # 各状態に対してループ
             # 必要なフィールド（始値、高値、安値、終値、割り当て割合）を取得
             data = [getattr(state, name) for name in ['open', 'high', 'low', 'close', 'allocation_percentage']]
-            # 各インジケーターの値を取得して追加
-            data += [value for indicator in state.indicators for value in indicator["values"].values()]
+
+            print("State:", state)   # 内容確認
+
+            for indicator in state.indicators:
+                print("Indicator:", indicator)   # 内容確認
+                # indicator["values"]が辞書であることを確認
+                if isinstance(indicator["values"], dict):
+                    data += [value for value in indicator["values"].values()]
+                else:
+                    print("Error: indicator['values] is not a dictionary:", indicator["values"])
+
             full_data.append(data)  # 各状態のデータを全体のリストに追加
 
         results = np.array(full_data)  # リストをNumPy配列に変換

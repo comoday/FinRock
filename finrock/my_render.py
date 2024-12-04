@@ -1,5 +1,5 @@
 from enum import Enum   # Enumモジュール(列挙型を作成するため)
-from .state import State
+from my_state import State
 
 # 描画のタイプを定義する列挙型
 class RenderType(Enum):

@@ -4,7 +4,7 @@ import tensorflow as tf
 # TensorFlowのログレベルをERRORに設定（警告や情報メッセージを表示しない）
 tf.get_logger().setLevel('ERROR')
 # GPUデバイスのメモリ成長を有効にする設定
-for gpu in tf.config.experimental.list_physical_devices('GPU'):
+for gpu in tf.config.list_physical_devices('GPU'):
     tf.config.experimental.set_memory_growth(gpu, True)
 
 from finrock.data_feeder import PdDataFeeder
@@ -12,12 +12,12 @@ from finrock.trading_env import TradingEnv
 from finrock.render import PygameRender
 
 # CSVファイルからデータを読み込む
-df = pd.read_csv('Datasets/random_sinusoid.csv')
+df = pd.read_csv('Datasets/2023_5min.csv')
 # 最後の1000行を取り出してデータフレームを作成
 df = df[-1000:]
-6
+
 # モデルのパスを指定
-model_path = "runs/1730685315"
+model_path = "runs/1730862252"
 
 # PdDataFeederの設定をモデルパスから読み込む
 pd_data_feeder = PdDataFeeder.load_config(df, model_path)
@@ -32,15 +32,13 @@ input_shape = env.observation_space.shape    # 環境の観察空間の形状を
 pygameRender = PygameRender(frame_rate=120)  # フレームレートを120に設定
 
 # 学習済みモデル（アクターモデル）を読み込む
-agent = tf.keras.models.load_model(f'{model_path}/ppo_sinusoid_actor.h5')
+agent = tf.keras.models.load_model(f'{model_path}/ppo_sinusoid_actor.keras')
 
 """ 
 ・categorical_crossentropy: 多クラス分類問題において、モデルの予測と実際のラベルの間の差異を測定する損失関数です。
 ・accuracy: モデルの正確性を示す指標で、正しく分類されたサンプルの割合を計算します。
 これらの損失関数とメトリクスは、モデルのトレーニングと評価において重要な役割を果たします。
 """
-# モデルをコンパイルする # 必要に応じて適切なオプティマイザと損失関数を指定
-agent.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
 # 環境をリセットして初期状態と情報を取得
 state, info = env.reset()

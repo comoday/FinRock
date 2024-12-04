@@ -1,4 +1,4 @@
-from .state import State  # Stateクラスを同じパッケージからインポート
+from my_state import State  # Stateクラスを同じパッケージからインポート
 import numpy as np  # NumPyをインポート。数値計算や配列操作に使用。
 
 """ 

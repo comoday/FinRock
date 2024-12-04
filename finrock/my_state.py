@@ -1,5 +1,7 @@
 import typing
 import numpy as np
+import pandas as pd
+import logging
 from datetime import datetime
 
 # Stateオブジェクトは、金融データを表現するための基本的な構成要素であり、
@@ -9,13 +11,13 @@ from datetime import datetime
 class State:
     def __init__(
             self, 
-            timestamp: str, 
+            timestamp: pd.Timestamp, 
             open: float, 
             high: float, 
             low: float, 
             close: float, 
-            volume: float=0.0,
-            indicators: list=[]
+            volume: float,
+            indicators: typing.Optional[dict] = None
         ):  # それぞれの項目をインスタンス変数に設定
         self.timestamp = timestamp
         self.open = open
@@ -23,17 +25,35 @@ class State:
         self.low = low
         self.close = close
         self.volume = volume
-        self.indicators = indicators
+        self.indicators = indicators if indicators is not None else {}  # インジケータの辞書
 
-        # タイムスタンプをdatetimeオブジェクトに変換
-        try:
-            self.date = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
-        except ValueError:
-            raise ValueError(f'received invalid timestamp date format: {timestamp}, expected: YYYY-MM-DD HH:MM:SS')
+        # try:
+        #     self.date = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
+        # except ValueError:
+        #     raise ValueError(f'received invalid timestamp date format: {timestamp}, expected: YYYY-MM-DD HH:MM:SS')
         
         self._balance = 0.0 # 現金残高（プライベート変数）
         self._assets = 0.0 # 資産残高（プライベート変数）
         self._allocation_percentage = 0.0 # この状態に割り当てられた資産の割合（プライベート変数）
+
+
+    def to_dict(self):
+        """Stateオブジェクトを辞書形式に変換するメソッド"""
+        state_dict = {
+            'timestamp': self.timestamp,
+            'open': self.open,
+            'high': self.high,
+            'low': self.low,
+            'close': self.close,
+            'volume': self.volume,
+        }
+        if isinstance(self.indicators, dict):
+            state_dict.update(self.indicators)  # インジケータを辞書に追加
+        return state_dict
+
+    def __repr__(self):
+        """Stateオブジェクトの文字列表現を定義するメソッド"""
+        return f"State(timestamp={self.timestamp}, open={self.open}, high={self.high}, low={self.low}, close={self.close}, volume={self.volume}, indicators={self.indicators})"    # タイムスタンプをdatetimeオブジェクトに変換
         
     @property
     def balance(self):
@@ -71,17 +91,17 @@ class Observations:
     def __init__(
             self, 
             window_size: int,  # ウィンドウサイズ（観測の最大値）
-            observations: typing.List[State]=[],  # 初期観測リスト（デフォルトは空リスト）
+            observations: typing.Optional[typing.List[State]] = None,  # 初期観測リスト（デフォルトは空リスト）
         ):
-        self._observations = observations  # 観測リストをプライベート変数に設定
+        self._observations = observations if observations is not None else [] # 観測リストをプライベート変数に設定
         self._window_size = window_size  # ウィンドウサイズをプライベート変数に設定
 
         # 観測がリストであることを確認
-        assert isinstance(self._observations, list) == True, "observations must be a list"
+        assert isinstance(self._observations, list), "observations must be a list"
         # 観測の長さがウィンドサイズ以下であることを確認
         assert len(self._observations) <= self._window_size, f'observations length must be <= window_size, received: {len(self._observations)}'
         # 観測リストのすべての要素がStateオブジェクトであることを確認
-        assert all(isinstance(observation, State) for observation in self._observations) == True, "observations must be a list of State objects"
+        assert all(isinstance(observation, State) for observation in self._observations), "observations must be a list of State objects"
 
     def __len__(self) -> int:
         # 観測リストの長さを返す
@@ -110,8 +130,7 @@ class Observations:
             # インデックスが範囲外の場合は例外を発生させる
             raise IndexError(f'index out of range: {idx}, observations length: {len(self._observations)}')
         
-    def __iter__(self) -> State:
-        
+    def __iter__(self) -> typing.Generator[State, None, None]:
         """ シーケンスを反復するジェネレータを作成します ."""
         for index in range(len(self)):
             yield self[index]  # 各インデックスの観測を生成する
@@ -119,15 +138,18 @@ class Observations:
     def reset(self) -> None:
         # 観測リストを空にする
         self._observations = []
+        logging.info("Observations have been reset.")
     
     def append(self, state: State) -> None:
         # stateはStateオブジェクトまたは Noneであるべき
-        assert isinstance(state, State) or state is None, "state must be a State object or None"
+        assert isinstance(state, State) , "state must be a State object "
         self._observations.append(state)  # 観測リストに新しい状態を追加
+        logging.info(f"Appended state: {state}")
 
         # 観測リストがウィンドウサイズを超えた場合、最初の要素を削除
         if len(self._observations) > self._window_size:
-            self._observations.pop(0)  # 最初の要素を削除してサイズを維持する
+            remove_state = self._observations.pop(0)  # 最初の要素を削除してサイズを維持する
+            logging.info(f"Removed state due to window size limit: {remove_state}")
 
     # 観測から各状態の「それぞれの値」を取得し、NumPy配列として返すプロパティ
     @property

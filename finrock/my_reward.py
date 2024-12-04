@@ -1,5 +1,5 @@
 import numpy as np
-from .state import Observations
+from my_state import Observations
 
 class Reward:
     def __init__(self) -> None:  # Rewardクラスの初期化メソッド
@@ -24,14 +24,21 @@ class SimpleReward(Reward):
 
     def __call__(self, observations: Observations) -> float:
         # 観測データを受け取り、報酬を計算するメソッド
-        assert isinstance(observations, Observations) == True, "observations must be an instance of Observations"
+        if not isinstance(observations, Observations):
+            raise ValueError("observations must be an instance of Observations")
+        
         # 観測から最後の2つの状態を取得
+        if len(observations.observations) < 2:
+            return 0.0  # 観測が不十分な場合は報酬を0にする
+        
         last_state, next_state = observations[-2:]
 
         # 購入アクションの場合
         if next_state.allocation_percentage > last_state.allocation_percentage:
             # 購入が良かったか悪かったかを判断
             order_size = next_state.allocation_percentage - last_state.allocation_percentage   # 購入サイズを計算
+            if last_state.close == 0:  # ゼロ除算を防ぐ
+                return 0.0
             # 購入による報酬を計算
             reward = (next_state.close - last_state.close) / last_state.close * order_size
             # 保持による報酬を計算
@@ -42,6 +49,8 @@ class SimpleReward(Reward):
         elif next_state.allocation_percentage < last_state.allocation_percentage:
             # 売却が良かったか悪かったかを判断
             order_size = last_state.allocation_percentage - next_state.allocation_percentage   # 売却サイズを計算
+            if last_state.close == 0:  # ゼロ除算を防ぐ
+                return 0.0
             # 売却による報酬を計算
             reward = -1 * (next_state.close - last_state.close) / last_state.close * order_size
             # 保持による報酬を計算
@@ -52,6 +61,8 @@ class SimpleReward(Reward):
         else:
             # 保持かよかったか悪かったかを判断
             ratio = -1 if not last_state.allocation_percentage else last_state.allocation_percentage  # 割り当て割合を取得
+            if last_state.close == 0:
+                return 0.0
             reward = (next_state.close - last_state.close) / last_state.close * ratio  # 保持による報酬を計算
             
         return reward   # 計算された報酬を返す

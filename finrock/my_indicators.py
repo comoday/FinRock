@@ -1,6 +1,6 @@
 import pandas as pd
-
-from .render import RenderOptions, RenderType, WindowType
+import logging
+from my_render import RenderOptions, RenderType, WindowType
 
 """ Implemented indicators:
 - SMA
@@ -144,19 +144,9 @@ class Indicator:
             'min': self.min,  # 最小値
             'max': self.max  # 最大値
         }
-
+"""
 class SMA(Indicator):
-    """ Trend indicator
-    トレンドインジケーター
-
-    シンプル移動平均（SMA）は、選択した価格範囲（通常は終値）の平均を、その範囲内の期間数で計算します。
-
-    SMAは、資産価格が強気トレンドまたは弱気トレンドを継続するか逆転するかを判定するためのテクニカルインジケーターです。
-    SMAは、株の終値を一定期間合計し、それを観察している期間の数で割ることによって計算されます。
-    短期平均は基となる価格の変化に素早く反応し、長期平均は反応が遅くなります。
-
-    https://www.investopedia.com/terms/s/sma.asp
-    """
+    
     
     def __init__(
             self, 
@@ -188,6 +178,7 @@ class SMA(Indicator):
     def compute(self):
         # SMAを計算してデータに追加
         self._data[self._names[0]] = self._data[self.target_column].rolling(self._period).mean()
+        logging.debug(f"SMA computed: {self._data[self._names[0]].tail()}")
 
     def config(self):
         # 設定を返す
@@ -197,17 +188,7 @@ class SMA(Indicator):
 
 
 class BolingerBands(Indicator):
-    """ Volatility indicator
-    ボリンジャーバンド（Bollinger Bands）は、ボラティリティ指標です。
-
-    ボリンジャーバンドは、ジョン・ボリンジャーによって開発された価格エンベロープの一種です。（価格エンベロープは、上限と下限の価格範囲を定義します。）
     
-    ボリンジャーバンドは、価格の単純移動平均の上と下に標準偏差のレベルでプロットされたエンベロープです。バンドの距離は標準偏差に基づいているため、基となる価格のボラティリティの変動に適応します。
-
-    ボリンジャーバンドは、期間と標準偏差（StdDev）の2つのパラメータを使用します。デフォルト値は、期間が20、標準偏差が2ですが、組み合わせはカスタマイズ可能です。
-
-    ボリンジャーバンドは、価格が相対的に高いか低いかを判断するのに役立ちます。上部バンドと下部バンドのペアで使用され、移動平均と一緒に使用されます。さらに、このペアは単独で使用することを意図していません。他のインジケーターからの信号を確認するために使用してください。
-    """
     
     def __init__(
             self, 
@@ -251,15 +232,7 @@ class BolingerBands(Indicator):
         return config
 
 class RSI(Indicator):
-    """ Momentum indicator
-    モメンタム指標
-
-    相対力指数（RSI）は、J. ウェルズ・ワイルダーによって開発されたモメンタムオシレーターで、価格変動の速度と変化を測定します。
-    RSIは0から100の間で変動し、従来は70以上で買われすぎ、30以下で売られすぎと見なされます。
-    シグナルは、ダイバージェンスや失敗のスイングを探ることによって生成できます。
     
-    RSIは、一般的なトレンドを特定するためにも使用できます。
-    """
     
     def __init__(
             self, 
@@ -328,16 +301,7 @@ class RSI(Indicator):
         return config  # 設定を返す
 
 class PSAR(Indicator):
-    """ Parabolic Stop and Reverse (Parabolic SAR)
-    パラボリック・ストップ・アンド・リバース（パラボリックSAR）
-
-    パラボリック・ストップ・アンド・リバース（通称パラボリックSAR）は、J. Welles Wilderが開発したトレンドフォローのインジケーターです。
-
-    パラボリックSARは、上昇トレンドでは価格バーの下に、下降トレンドでは価格バーの上に表示される点または曲線です。
-
-    https://school.stockcharts.com/doku.php?id=technical_indicators:parabolic_sar
-    """
-    
+        
     def __init__(
             self, 
             data: pd.DataFrame,  # データを含むPandas DataFrame
@@ -463,12 +427,7 @@ class PSAR(Indicator):
         return config
 
 class MACD(Indicator):
-    """ Moving Average Convergence Divergence (MACD)
-    移動平均収束発散（MACD）
-
-    MACDは、トレンドの強さと方向を示すテクニカル指標であり、短期と長期の指数移動平均（EMA）の差を利用して計算されます。
-    """
-
+    
     def __init__(
             self, 
             data: pd.DataFrame,  # データを含むPandas DataFrame
@@ -522,4 +481,4 @@ class MACD(Indicator):
         config['slow_ma'] = self._slow_ma  # 長期移動平均の期間を設定
         config['histogram'] = self._histogram  # ヒストグラムの期間を設定
         return config  # 設定を返す
-   
+"""   
