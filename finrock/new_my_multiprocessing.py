@@ -98,6 +98,8 @@ def run_trading_env(q, delay_minutes=170):
                 # data_feederの初期化（適切なパラメータで初期化）
                 data_feeder = PdDataFeeder(df=combined_df, output_transformer=output_transformer)  
                 logger.info("Initialized PdDataFeeder successfully.")
+                data = data_feeder.data
+                print(data)  # データの表示
             except ValueError as e:
                 logger.error(f"Error initializing PdDataFeeder: {e}")
                 return
@@ -134,13 +136,19 @@ def run_trading_env(q, delay_minutes=170):
                         low=float(state['low']),
                         close=float(state['close']),
                         volume=float(state['volume']),
-                        indicators={k: float(v) for k, v in state.items() if k not in ['timestamp', 'open', 'high', 'low', 'close', 'volume']}
+                        indicators={k: float(v) for k, v in state.items()}    
+                        #   if k not in ['timestamp', 'open', 'high', 'low', 'close', 'volume']}
                     )
                     data_feeder._df.iloc[index] = state  # 変換したStateオブジェクトをデータフレームに戻す
+                    print(f"index: {index}, state: {state}")
+                    print(f"type(index): {type(index)}, type(state['timestamp']): {type(state['timestamp'])}")
+                            
                 elif isinstance(state, State):
                     continue
                 else:
                     raise ValueError(f"Unexpected data format at index {index}: {type(state)}")
+                print(f"index: {index}, state: {state}")
+                print(f"type(index): {type(index)}, type(state['timestamp']): {type(state['timestamp'])}")
             except Exception as e:
                 logger.error(f"Error processing index {index}: {e}")    
         
@@ -153,6 +161,9 @@ def run_trading_env(q, delay_minutes=170):
             if not isinstance(data_feeder, PdDataFeeder):
                 logger.error("Invialid data feeder provided. Excepted instance of PdDataFeeder.")
                 return
+            
+                # デバッグ情報を追加
+            logger.info(f"Initializing TradingEnv with data feeder: {data_feeder}")
             
             # TradingEnvの初期化
             trading_env = TradingEnv(data_feeder=data_feeder, max_episode_steps=max_episode_steps, output_transformer=output_transformer)    

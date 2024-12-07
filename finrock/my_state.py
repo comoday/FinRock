@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import logging
 from datetime import datetime
-
+from typing import Union
 # Stateオブジェクトは、金融データを表現するための基本的な構成要素であり、
 # ObservationsクラスはこれらのStateオブジェクトを管理し、特定のウィンドウサイズの範囲で効率的に操作できるように設計されています。
 # この連携により、金融データの分析やトレード戦略の実装が可能になります.
@@ -11,7 +11,7 @@ from datetime import datetime
 class State:
     def __init__(
             self, 
-            timestamp: pd.Timestamp, 
+            timestamp: Union[str, pd.Timestamp], 
             open: float, 
             high: float, 
             low: float, 
@@ -19,13 +19,26 @@ class State:
             volume: float,
             indicators: typing.Optional[dict] = None
         ):  # それぞれの項目をインスタンス変数に設定
-        self.timestamp = timestamp
+        try:
+            self.timestamp = pd.Timestamp(timestamp)
+        except ValueError:
+            raise ValueError(f"Invalid timestamp format: {timestamp}")
         self.open = open
         self.high = high
         self.low = low
         self.close = close
         self.volume = volume
-        self.indicators = indicators if indicators is not None else {}  # インジケータの辞書
+        # # indicatorsの値を数値に変換
+        # self.indicators = {k: float(v) for k, v in indicators.items()}
+        # # indicatorsの値を数値に変換
+        if indicators is not None:
+            if not isinstance(indicators, dict):
+                raise ValueError("Indicators must be a dictionary.")
+            self.indicators = {k: float(v) for k, v in indicators.items()}
+        else:
+            self.indicators = {}
+
+        # self.indicators = indicators if indicators is not None else {}  # インジケータの辞書
 
         # try:
         #     self.date = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')

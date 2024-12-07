@@ -54,8 +54,12 @@ class PdDataFeeder:
             if column not in df.columns:
                 raise ValueError(f"DataFrame must have '{column}' column.")
 
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            raise ValueError(f"DataFrame is missing the following required columns: {', '.join(missing_columns)}")
+
         # インスタンス変数の初期化
-        self._df = df   # データフレームをインスタンス変数に保存
+        self._df = df.reset_index(drop=True)   # データフレームをインスタンス変数に保存(インデックスをリセット)
         
         self._min = min  # 最小値をインスタンス変数に保存
         self._max = max  # 最大値をインスタンス変数に保存
@@ -70,6 +74,9 @@ class PdDataFeeder:
         """ データフレームを返すプロパティ """
         return self._df
 
+    def get_data(self) -> pd.DataFrame:
+        """ データフレームを返すメソッド """
+        return self.data  # dataプロパティを利用してデータフレームを返す
 
     def update_data(self, df: pd.DataFrame):
 
@@ -115,6 +122,8 @@ class PdDataFeeder:
             if df['timestamp'].isin(self._df['timestamp']).any():
                 raise ValueError("New data contain duplicate timestamps with existing data.")
 
+        df = df.reset_index(drop=True)   # データフレームのインデックスをリセット
+
         # データフレームをインスタンス変数に保存
         self._df = pd.concat([self._df, df]).drop_duplicates(subset='timestamp').reset_index(drop=True)
         self.logger.info(f"Data updated in PdDataFeeder: {self._df.head()}")  # データの先頭をログに記録
@@ -126,7 +135,7 @@ class PdDataFeeder:
     #     return self.__class__.__name__  # クラスの名前を文字列として返す
 
     @property
-    def name(self) -> str:  # (外部から)インジケータの名前を(簡単に)取得するためにプロパティ
+    def name(self) -> str:  # (���部から)インジケータの名前を(簡単に)取得するためにプロパティ
         return self.__class__.__name__  # __name__プロパティを呼び出してクラス名を返す
 
     @property
@@ -246,7 +255,7 @@ class PdDataFeeder:
         # # _indicatorsリストに保存された各インジケータに対し、指定されたインデックスを渡して結果を取得
         # for indicator in self._indicators:
         #     results = indicator(idx)
-        #     if results is None:  # インジケータがNoneを返した場合
+        #     if results is None:  # インジケータがNone���返した場合
         #         self._cache[idx] = None  # そのインデックスの結果をキャッシュにNoneとして保存し処理終了
         #         return None
             

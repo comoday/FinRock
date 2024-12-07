@@ -15,19 +15,6 @@ from my_reward import SimpleReward  # 報酬計算用のクラス
 
 # line_notify = LineNotify()
 
-# ログ設定
-# log_handler = RotatingFileHandler(
-#     'trading_env.log', 
-#     maxBytes=5*1024*1024,  # 5MB
-#     backupCount=5  # バックアップファイルの数
-# )
-# log_handler.setFormatter(logging.Formatter(
-#     '%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s', 
-#     datefmt='%Y-%m-%d %H:%M:%S %z'
-# ))
-# logging.getLogger().addHandler(log_handler)
-# logging.getLogger().setLevel(logging.INFO)
-
 try:
     from rich import print
 except ImportError:
@@ -80,7 +67,10 @@ class TradingEnv:
         # ロガーにファイルハンドラを追加
         self.logger.addHandler(file_handler)
 
-        
+        self.data = data_feeder.data
+        # data_feeder.dataのキーを整数に変更する
+        self.data = {i: value for i, value in self.data.items()}
+
         self.data_feeder = data_feeder
         self.max_episode_steps = max_episode_steps
         self.output_transformer = output_transformer
@@ -93,6 +83,9 @@ class TradingEnv:
         data_size = len(data_feeder)
         if data_size < 1:
             raise ValueError("Not enough data in data_feeder to initialize the environment.")
+        # デバッグ出力
+        self.logger.info(f"DataFeeder initialized with {data_size} rows of data.")
+
 
         # 最初の状態を取得
         self.current_index = 0  # 現在のインデックスを初期化
@@ -120,10 +113,30 @@ class TradingEnv:
         self._observation_space = np.zeros(self.reset()[0].shape)  # 観測空間を初期化
         self._action_space = action_space  # 行動空間を保存
         self.fee_ratio = 1 - self._order_fee_percent  # 手数料を考慮した比率を計算
+        
+        # 状態とメトリクス情報を格納する辞書を作成
+        info = {
+            "states": self._observations.observations,  # 現在の観測を追加
+            "metrics": {}  # メトリクスは空の辞書で初期化
+        }
 
+        # 各メトリクスを最後の観測でリセット
+        for metric in self._metrics:
+            metric.reset(self._observations.observations[-1])
+
+        # 観測を変換
+        transformed_obs = self._output_transformer.transform(self._observations)
+        
+        # 変換された観測にNaNが含まれているかチェック
+        if np.isnan(transformed_obs).any():
+            raise ValueError("transformed_obs contains NaN values, check your data")  # NaNがあればエラーを発生
         # 初期化完了のログ
         self.logger.info("TradingEnv initialized successfully.")
 
+        # 状態と情報を返す
+        return transformed_obs, info
+
+        
     @property  # 行動空間の値を返すプロパティ
     def action_space(self):
         return self._action_space.value  
@@ -145,11 +158,15 @@ class TradingEnv:
         logging.info(f"Type of next_state: {type(next_state)}")
 
         if isinstance(next_state, dict):   # next_stateが辞書であれば、Stateオブジェクトにマッピングするロジックを追加
-            next_state = State(**next_state)
-
+            try:
+                next_state = State(**next_state)  # 辞書からStateオブジェクトを作成
+            except TypeError as e:
+                logging.error(f"Error creating State from dict: {e}")
+                raise ValueError(f"Invalid data format for State: {next_state}")
+            
         elif not isinstance(next_state, State):
             logging.error(f"Expected next_state to be of type State, got {type(next_state)} instead.")
-            raise ValueError(f"Expected next_state to be of type State, got {type(next_state)} instead.")      
+            raise TypeError(f"Expected next_state to be of type State, got {type(next_state)} instead.")      
                 
         if balance is not None:  # 指定されたバランスがある場合、次の状態に設定
             next_state.balance = balance
@@ -293,7 +310,11 @@ class TradingEnv:
 
         # アクションを実行し、アクションと注文サイズを取得
         action, order_size = self._take_action(action)
-        
+
+        # デバッグ出力
+        self.logger.info(f"Action taken: {action}")
+        self.logger.info(f"Current observation before step: {self._observations}")
+
         # 報酬を計算
         try:
             reward = self._reward_function(self._observations)
@@ -319,6 +340,11 @@ class TradingEnv:
         # 変換された観測にNaNが含まれているかチェック
         if np.isnan(transformed_obs).any():
             raise ValueError("transformed_obs contains nan values, check your data")   # NaNが含まれている場合はエラーを発生
+        # 環境のステップを進める
+        observation, reward, terminated, truncated, info = self._step(action)
+
+        # デバッグ出力
+        self.logger.info(f"New observation after step: {observation}")
 
         # 次の状態、報酬、終了フラグ、切り捨てフラグ、追加情報を返す
         return transformed_obs, reward, terminated, truncated, info
